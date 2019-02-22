@@ -4,13 +4,13 @@ from datetime import datetime
 from getpass import getuser
 import re
 
+from pyhive import hive
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.compat import basestring, NUMBERS, to_string
 from dbt.exceptions import RuntimeException
 from dbt.logger import GLOBAL_LOGGER as logger
 
-from pyhive import hive
 from TCLIService.ttypes import TOperationState
 #from prestodb.transaction import IsolationLevel
 #from prestodb.auth import KerberosAuthentication
@@ -19,14 +19,14 @@ import sqlparse
 
 HIVE_CREDENTIALS_CONTRACT = {
     'type': 'object',
-    'additionalProperties': False,
+    'additionalProperties': True,
     'properties': {
         'database': {
             'type': 'string',
         },
-        #'schema': {
-        #    'type': 'string',
-        #},
+        'schema': {
+            'type': 'string',
+        },
         'host': {
             'type': 'string',
         },
@@ -49,12 +49,15 @@ HIVE_CREDENTIALS_CONTRACT = {
             'type': 'object',
         },
     },
-    'required': ['database',  'host', 'port','username','pass'],
+    'required': ['database', 'host', 'port'],
 }
 
 
 class HiveCredentials(Credentials):
-    #SCHEMA = HIVE_CREDENTIALS_CONTRACT
+    SCHEMA = HIVE_CREDENTIALS_CONTRACT
+    ALIASES = {
+            'catalog': 'database',
+            }
 
     @property
     def type(self):
@@ -180,9 +183,9 @@ class HiveConnectionManager(SQLConnectionManager):
         hive_conn = hive.connect(
             host=credentials.host,
             port=credentials.get('port', 10000),
-            username=credentials.get('username', getuser()),
+            username=credentials.get('username', ''),#getuser()),
             password=credentials.get('pass',''),
-            #schema=credentials.get('schema','analytics'),
+            #schema=credentials.schema,
             auth='LDAP'
         )
         connection.state = 'open'
