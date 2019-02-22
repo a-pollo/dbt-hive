@@ -3,12 +3,12 @@
 -- - list_relations_without_caching
 -- - get_columns_in_relation
 
-{% macro presto_ilike(column, value) -%}
+{% macro hive_ilike(column, value) -%}
 	regexp_like({{ column }}, '(?i)\A{{ value }}\Z')
 {%- endmacro %}
 
 
-{% macro presto__get_columns_in_relation(relation) -%}
+{% macro hive__get_columns_in_relation(relation) -%}
   {% call statement('get_columns_in_relation', fetch_result=True) %}
       select
           column_name,
@@ -25,12 +25,12 @@
       from
       {{ information_schema_name(relation.database) }}.columns
 
-      where {{ presto_ilike('table_name', relation.identifier) }}
+      where {{ hive_ilike('table_name', relation.identifier) }}
         {% if relation.schema %}
-        and {{ presto_ilike('table_schema', relation.schema) }}
+        and {{ hive_ilike('table_schema', relation.schema) }}
         {% endif %}
         {% if relation.database %}
-        and {{ presto_ilike('table_catalog', relation.database) }}
+        and {{ hive_ilike('table_catalog', relation.database) }}
         {% endif %}
       order by ordinal_position
 
@@ -41,7 +41,7 @@
 {% endmacro %}
 
 
-{% macro presto__list_relations_without_caching(database, schema) %}
+{% macro hive__list_relations_without_caching(database, schema) %}
   {% call statement('list_relations_without_caching', fetch_result=True) -%}
     select
       table_catalog as database,
@@ -52,20 +52,20 @@
            else table_type
       end as table_type
     from {{ information_schema_name(database) }}.tables
-    where {{ presto_ilike('table_schema', schema) }}
-      and {{ presto_ilike('table_catalog', database) }}
+    where {{ hive_ilike('table_schema', schema) }}
+      and {{ hive_ilike('table_catalog', database) }}
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
 {% endmacro %}
 
 
-{% macro presto__reset_csv_table(model, full_refresh, old_relation) %}
+{% macro hive__reset_csv_table(model, full_refresh, old_relation) %}
     {{ adapter.drop_relation(old_relation) }}
     {{ return(create_csv_table(model)) }}
 {% endmacro %}
 
 
-{% macro presto__create_table_as(temporary, relation, sql) -%}
+{% macro hive__create_table_as(temporary, relation, sql) -%}
   create table
     {{ relation }}
   as (
@@ -74,27 +74,27 @@
 {% endmacro %}
 
 
-{% macro presto__drop_relation(relation) -%}
+{% macro hive__drop_relation(relation) -%}
   {% call statement('drop_relation', auto_begin=False) -%}
     drop {{ relation.type }} if exists {{ relation }}
   {%- endcall %}
 {% endmacro %}
 
 
-{% macro presto__drop_schema(database_name, schema_name) -%}
+{% macro hive__drop_schema(database_name, schema_name) -%}
   {%- call statement('drop_schema') -%}
     drop schema if exists {{database_name}}.{{schema_name}}
   {% endcall %}
 {% endmacro %}
 
 
-{% macro presto__rename_relation(from_relation, to_relation) -%}
+{% macro hive__rename_relation(from_relation, to_relation) -%}
   {% call statement('rename_relation') -%}
     alter table {{ from_relation }} rename to {{ to_relation }}
   {%- endcall %}
 {% endmacro %}
 
 
-{% macro presto__load_csv_rows(model) %}
+{% macro hive__load_csv_rows(model) %}
   {{ return(basic_load_csv_rows(model, 1000)) }}
 {% endmacro %}

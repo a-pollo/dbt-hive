@@ -1,15 +1,15 @@
 from dbt.adapters.sql import SQLAdapter
-from dbt.adapters.presto import PrestoConnectionManager
+from dbt.adapters.hive import HiveConnectionManager
 
 import agate
 
 
-class PrestoAdapter(SQLAdapter):
-    ConnectionManager = PrestoConnectionManager
+class HiveAdapter(SQLAdapter):
+    ConnectionManager = HiveConnectionManager
 
     @classmethod
     def date_function(cls):
-        return 'datenow()'
+        return 'from_unixtime(unix_timestamp())'
 
     @classmethod
     def convert_text_type(cls, agate_table, col_idx):
@@ -25,11 +25,6 @@ class PrestoAdapter(SQLAdapter):
         return "TIMESTAMP"
 
     def drop_schema(self, database, schema, model_name=None):
-        """On Presto, 'cascade' isn't supported so we have to manually cascade.
-
-        Fortunately, we don't have to worry about cross-schema views because
-        views (on hive at least) are non-binding.
-        """
         relations = self.list_relations(
             database=database,
             schema=schema,
@@ -37,7 +32,7 @@ class PrestoAdapter(SQLAdapter):
         )
         for relation in relations:
             self.drop_relation(relation, model_name=model_name)
-        super(PrestoAdapter, self).drop_schema(
+        super(HiveAdapter, self).drop_schema(
             database=database,
             schema=schema,
             model_name=model_name

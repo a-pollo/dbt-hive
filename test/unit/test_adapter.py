@@ -2,7 +2,7 @@ import mock
 import unittest
 import dbt.adapters
 import dbt.flags as flags
-from dbt.adapters.presto import PrestoAdapter
+from dbt.adapters.hive import HiveAdapter
 import agate
 
 from .utils import config_from_parts_or_dicts, inject_adapter
@@ -15,10 +15,10 @@ class TestPrestoAdapter(unittest.TestCase):
         profile_cfg = {
             'outputs': {
                 'test': {
-                    'type': 'presto',
-                    'catalog': 'prestodb',
+                    'type': 'hive',
+                    #'catalog': 'hive',
                     'host': 'database',
-                    'port': 5439,
+                    'port': 10000,
                     'schema': 'dbt_test_schema',
                     'method': 'none',
                 }
@@ -43,7 +43,7 @@ class TestPrestoAdapter(unittest.TestCase):
     @property
     def adapter(self):
         if self._adapter is None:
-            self._adapter = PrestoAdapter(self.config)
+            self._adapter = HiveAdapter(self.config)
         return self._adapter
 
     def test_acquire_connection(self):

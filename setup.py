@@ -2,9 +2,9 @@
 from setuptools import find_packages
 from distutils.core import setup
 
-package_name = "dbt-presto"
-package_version = "0.13.0a1"
-description = """The presto adpter plugin for dbt (data build tool)"""
+package_name = "dbt-hive"
+package_version = "0.13.0a2"
+description = """The hive adpter plugin for dbt (data build tool)"""
 
 setup(
     name=package_name,
@@ -17,13 +17,13 @@ setup(
     packages=find_packages(),
     package_data={
         'dbt': [
-            'include/presto/dbt_project.yml',
-            'include/presto/macros/*.sql',
-            'include/presto/macros/*/*.sql',
+            'include/hive/dbt_project.yml',
+            'include/hive/macros/*.sql',
+            'include/hive/macros/*/*.sql',
         ]
     },
     install_requires=[
         'dbt-core=={}'.format(package_version),
-        'presto-python-client',
+        'pyhive',
     ]
 )

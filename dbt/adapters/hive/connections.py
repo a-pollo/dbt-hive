@@ -10,22 +10,23 @@ from dbt.compat import basestring, NUMBERS, to_string
 from dbt.exceptions import RuntimeException
 from dbt.logger import GLOBAL_LOGGER as logger
 
-import prestodb
-from prestodb.transaction import IsolationLevel
-from prestodb.auth import KerberosAuthentication
+from pyhive import hive
+from TCLIService.ttypes import TOperationState
+#from prestodb.transaction import IsolationLevel
+#from prestodb.auth import KerberosAuthentication
 import sqlparse
 
 
-PRESTO_CREDENTIALS_CONTRACT = {
+HIVE_CREDENTIALS_CONTRACT = {
     'type': 'object',
     'additionalProperties': False,
     'properties': {
         'database': {
             'type': 'string',
         },
-        'schema': {
-            'type': 'string',
-        },
+        #'schema': {
+        #    'type': 'string',
+        #},
         'host': {
             'type': 'string',
         },
@@ -34,35 +35,37 @@ PRESTO_CREDENTIALS_CONTRACT = {
             'minimum': 0,
             'maximum': 65535,
         },
-        'method': {
-            # TODO: what do most people use? Kerberos is what the official one
-            # implements.
-            'enum': ['none', 'kerberos'],
+        'username': {
+            'type': 'string',
         },
+        'pass': {
+            'type': 'string',
+        },
+        #'auth': {
+        #    # TODO: Eventually figure out default connection method. We use LDAP
+        #    'enum': ['none', 'kerberos', 'LDAP'],
+        #},
         'userinfo-json': {
             'type': 'object',
         },
     },
-    'required': ['database', 'schema', 'host', 'port'],
+    'required': ['database',  'host', 'port','username','pass'],
 }
 
 
-class PrestoCredentials(Credentials):
-    SCHEMA = PRESTO_CREDENTIALS_CONTRACT
-    ALIASES = {
-        'catalog': 'database',
-    }
+class HiveCredentials(Credentials):
+    #SCHEMA = HIVE_CREDENTIALS_CONTRACT
 
     @property
     def type(self):
-        return 'presto'
+        return 'hive'
 
     def _connection_keys(self):
         return ('host', 'port', 'database', 'username')
 
 
 class ConnectionWrapper(object):
-    """Wrap a Presto connection in a way that accomplishes two tasks:
+    """Wrap a Hive connection in a way that accomplishes two tasks:
 
         - prefetch results from execute() calls so that presto calls actually
             persist to the db but then present the usual cursor interface
@@ -83,7 +86,6 @@ class ConnectionWrapper(object):
             self._cursor.cancel()
 
     def close(self):
-        # this is a noop on presto, but pass it through anyway
         self.handle.close()
 
     def commit(self):
@@ -109,8 +111,6 @@ class ConnectionWrapper(object):
     def execute(self, sql, bindings=None):
 
         if bindings is not None:
-            # presto doesn't actually pass bindings along so we have to do the
-            # escaping and formatting ourselves
             bindings = tuple(self._escape_value(b) for b in bindings)
             sql = sql % bindings
 
@@ -141,8 +141,8 @@ class ConnectionWrapper(object):
             raise ValueError('Cannot escape {}'.format(type(value)))
 
 
-class PrestoConnectionManager(SQLConnectionManager):
-    TYPE = 'presto'
+class HiveConnectionManager(SQLConnectionManager):
+    TYPE = 'hive'
 
     @contextmanager
     def exception_handler(self, sql, connection_name='master'):
@@ -172,24 +172,21 @@ class PrestoConnectionManager(SQLConnectionManager):
             return connection
 
         credentials = connection.credentials
-        if credentials.method == 'kerberos':
-            auth = KerberosAuthentication()
-        else:
-            auth = prestodb.constants.DEFAULT_AUTH
+        #if credentials.method == 'kerberos':
+        #    auth = KerberosAuthentication()
+        #else:
+        #    auth = prestodb.constants.DEFAULT_AUTH
 
-        # it's impossible for presto to fail here as 'connections' are actually
-        # just cursor factories.
-        presto_conn = prestodb.dbapi.connect(
+        hive_conn = hive.connect(
             host=credentials.host,
-            port=credentials.get('port', 8080),
-            user=credentials.get('username', getuser()),
-            catalog=credentials.database,
-            schema=credentials.schema,
-            auth=auth,
-            isolation_level=IsolationLevel.SERIALIZABLE,
+            port=credentials.get('port', 10000),
+            username=credentials.get('username', getuser()),
+            password=credentials.get('pass',''),
+            #schema=credentials.get('schema','analytics'),
+            auth='LDAP'
         )
         connection.state = 'open'
-        connection.handle = ConnectionWrapper(presto_conn)
+        connection.handle = ConnectionWrapper(hive_conn)
         return connection
 
     @classmethod
@@ -222,7 +219,7 @@ class PrestoConnectionManager(SQLConnectionManager):
             if without_comments == "":
                 continue
 
-            parent = super(PrestoConnectionManager, self)
+            parent = super(HiveConnectionManager, self)
             connection, cursor = parent.add_query(
                 individual_query, model_name, auto_begin, bindings,
                 abridge_sql_log
@@ -235,7 +232,7 @@ class PrestoConnectionManager(SQLConnectionManager):
                     "sure your `else` clause contains valid sql!\n\n"
                     "Provided SQL:\n{}".format(model_name, sql))
 
-        return connection, cursor
+            return connection, cursor
 
     def execute(self, sql, name=None, auto_begin=False, fetch=False):
         self.get(name)

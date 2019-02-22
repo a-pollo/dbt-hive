@@ -1,5 +1,5 @@
 
-{% macro presto__get_catalog() -%}
+{% macro hive__get_catalog() -%}
     {%- call statement('catalog', fetch_result=True) -%}
     select * from (
     {% for database in databases %}
