@@ -95,7 +95,8 @@ class ConnectionWrapper(object):
         self.handle.commit()
 
     def rollback(self):
-        self.handle.rollback()
+        #self.handle.rollback()
+        print('hive does not support rollback')
 
     def start_transaction(self):
         self.handle.start_transaction()
@@ -112,6 +113,7 @@ class ConnectionWrapper(object):
         return None
 
     def execute(self, sql, bindings=None):
+        print(sql)
 
         if bindings is not None:
             bindings = tuple(self._escape_value(b) for b in bindings)
@@ -160,8 +162,9 @@ class HiveConnectionManager(SQLConnectionManager):
 
     def add_begin_query(self, name):
         connection = self.get(name)
-        with self.exception_handler('handle.start_transaction()', name):
-            connection.handle.start_transaction()
+        #with self.exception_handler('handle.start_transaction()', name):
+            #connection.handle.start_transaction()
+            #connection.handle.()
 
     def add_commit_query(self, name):
         connection = self.get(name)
